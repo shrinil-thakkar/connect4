@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  connect4:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    volumes:
+      - ./public:/app/public
+      - ./server.js:/app/server.js
+      - ./package.json:/app/package.json
+    networks:
+      - connect4-network
+
+networks:
+  connect4-network:
+    driver: bridge 
