@@ -1,16 +1,24 @@
 {
-  "name": "connect4",
+  "name": "connect4-multiplayer",
   "version": "1.0.0",
-  "description": "A Connect 4 game implementation",
-  "main": "index.js",
+  "description": "Real-time multiplayer Connect 4 game",
+  "main": "server.js",
   "scripts": {
-    "start": "http-server -p 3000",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
-  "keywords": ["game", "connect4"],
+  "keywords": [
+    "game",
+    "connect4"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "http-server": "^14.1.1"
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
   }
-} 
+}
