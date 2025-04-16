@@ -4,14 +4,15 @@ services:
   connect4:
     build: .
     ports:
-      - "3000:3000"
+      - "0.0.0.0:3000:3000"
     environment:
       - NODE_ENV=production
+      - DEBUG=*
     restart: unless-stopped
     volumes:
-      - ./public:/app/public
-      - ./server.js:/app/server.js
-      - ./package.json:/app/package.json
+      - ./public:/app/public:ro
+      - ./server.js:/app/server.js:ro
+      - ./package.json:/app/package.json:ro
     networks:
       - connect4-network
 
