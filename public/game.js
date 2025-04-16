@@ -193,37 +193,48 @@ class Connect4Game {
 
         // Create the falling coin element
         const coin = document.createElement('div');
-        coin.className = `falling-coin player${this.currentPlayer}`;
+        coin.className = `falling-coin ${this.currentPlayer}`;
         
-        // Get the position of the first cell in the column
-        const firstCell = document.querySelector(`[data-row="0"][data-col="${col}"]`);
-        const cellRect = firstCell.getBoundingClientRect();
+        // Get the target cell and board position
+        const targetCell = document.querySelector(`[data-row="${targetRow}"][data-col="${col}"]`);
         const boardRect = this.board.getBoundingClientRect();
+        const cellRect = targetCell.getBoundingClientRect();
 
-        // Position the coin at the top of the column
-        coin.style.left = `${cellRect.left - boardRect.left + (cellRect.width - 40) / 2}px`;
-        coin.style.top = '0px';
+        // Calculate the exact position where the coin should fall
+        const coinLeft = cellRect.left - boardRect.left;
+        
+        // Position the coin at the top of the correct column
+        coin.style.left = `${coinLeft}px`;
+        coin.style.top = '0px';  // Start from the top of the board
         
         // Add the coin to the game board
         this.board.appendChild(coin);
 
-        // Animate the coin falling
+        // Animate the coin falling through each row
         let currentRow = 0;
-        function dropCoin() {
+        const animateNextRow = () => {
             if (currentRow <= targetRow) {
-                const cell = document.querySelector(`[data-row="${currentRow}"][data-col="${col}"]`);
-                const cellRect = cell.getBoundingClientRect();
-                coin.style.top = `${cellRect.top - boardRect.top}px`;
+                const currentCell = document.querySelector(`[data-row="${currentRow}"][data-col="${col}"]`);
+                const currentCellRect = currentCell.getBoundingClientRect();
+                
+                coin.style.transition = 'top 0.15s ease-in';  // Slower animation
+                coin.style.top = `${currentCellRect.top - boardRect.top}px`;
+                
                 currentRow++;
-                setTimeout(dropCoin, 50);
+                setTimeout(animateNextRow, 150);  // Longer delay between rows
             } else {
-                coin.remove();
-                if (callback) callback();
+                // Add a small delay before removing the coin and completing the move
+                setTimeout(() => {
+                    coin.remove();
+                    if (callback) callback();
+                }, 100);
             }
-        }
+        };
 
-        // Start the animation
-        requestAnimationFrame(dropCoin);
+        // Start the animation after a brief delay to ensure transition is applied
+        requestAnimationFrame(() => {
+            requestAnimationFrame(animateNextRow);
+        });
     }
 
     updateGameState(gameState) {
