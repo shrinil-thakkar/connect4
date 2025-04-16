@@ -2,277 +2,296 @@ class Connect4Game {
     constructor() {
         this.socket = io();
         this.playerName = '';
-        this.roomId = '';
-        this.playerSymbol = '';
-        this.currentTurn = '';
-        this.isAnimating = false;
-        this.gameState = Array(6).fill().map(() => Array(6).fill(null));
+        this.roomId = null;
+        this.isPlayer1 = false;
+        this.gameBoard = Array(6).fill().map(() => Array(7).fill(null));
+        this.currentPlayer = 'player1';
+        this.gameActive = false;
         
-        // DOM elements
-        this.setupScreen = document.getElementById('setup-screen');
+        // Initialize DOM elements
+        this.nameScreen = document.getElementById('name-screen');
+        this.lobbyScreen = document.getElementById('lobby-screen');
         this.gameScreen = document.getElementById('game-screen');
-        this.waitingScreen = document.getElementById('waiting-screen');
         this.playerNameInput = document.getElementById('player-name');
-        this.roomIdInput = document.getElementById('room-id');
+        this.playerNameDisplay = document.getElementById('player-name-display');
         this.roomIdDisplay = document.getElementById('room-id-display');
-        this.waitingRoomId = document.getElementById('waiting-room-id');
-        this.currentPlayerElement = document.getElementById('current-player');
-        this.gameStatusElement = document.getElementById('game-status');
-        this.boardElement = document.getElementById('board');
-        this.createRoomButton = document.getElementById('create-room');
-        this.joinRoomButton = document.getElementById('join-room');
-        this.copyRoomIdButton = document.getElementById('copy-room-id');
-        this.resetButton = document.getElementById('reset-button');
-        this.leaveRoomButton = document.getElementById('leave-room');
+        this.currentPlayerDisplay = document.getElementById('current-player');
+        this.gameMessageDisplay = document.getElementById('game-message');
+        this.board = document.getElementById('board');
+        this.roomList = document.getElementById('room-list');
+
+        // Initialize buttons
+        this.submitNameBtn = document.getElementById('submit-name');
+        this.createRoomBtn = document.getElementById('create-room-btn');
+        this.copyRoomIdBtn = document.getElementById('copy-room-id');
+        this.leaveRoomBtn = document.getElementById('leave-room');
 
         this.setupEventListeners();
-        this.initializeSocketListeners();
+        this.initializeSocketEvents();
     }
 
     setupEventListeners() {
-        this.createRoomButton.addEventListener('click', () => this.createRoom());
-        this.joinRoomButton.addEventListener('click', () => this.joinRoom());
-        this.copyRoomIdButton.addEventListener('click', () => this.copyRoomId());
-        this.resetButton.addEventListener('click', () => this.resetGame());
-        this.leaveRoomButton.addEventListener('click', () => this.leaveRoom());
-    }
-
-    initializeSocketListeners() {
-        this.socket.on('roomCreated', ({ roomId, playerName }) => {
-            this.roomId = roomId;
-            this.playerName = playerName;
-            this.playerSymbol = 'X';
-            this.currentTurn = 'X';
-            this.waitingRoomId.textContent = roomId;
-            this.roomIdDisplay.textContent = roomId;
-            this.setupScreen.classList.add('hidden');
-            this.gameScreen.classList.add('hidden');
-            this.waitingScreen.classList.remove('hidden');
-        });
-
-        this.socket.on('roomJoined', ({ roomId, playerName, opponent, gameState, currentTurn, playerSymbol }) => {
-            this.roomId = roomId;
-            this.playerName = playerName;
-            this.playerSymbol = playerSymbol;
-            this.currentTurn = currentTurn;
-            this.roomIdDisplay.textContent = roomId;
-            this.gameStatusElement.textContent = `Playing against ${opponent}`;
-            this.gameState = gameState;
-            this.setupScreen.classList.add('hidden');
-            this.waitingScreen.classList.add('hidden');
-            this.gameScreen.classList.remove('hidden');
-            this.initializeBoard();
-            this.updateBoard(gameState);
-            this.updatePlayerInfo();
-        });
-
-        this.socket.on('opponentJoined', ({ playerName, currentTurn }) => {
-            this.gameStatusElement.textContent = `Playing against ${playerName}`;
-            this.currentTurn = currentTurn;
-            this.waitingScreen.classList.add('hidden');
-            this.gameScreen.classList.remove('hidden');
-            this.updatePlayerInfo();
-        });
-
-        this.socket.on('gameStarted', ({ players, currentTurn, gameState }) => {
-            this.currentTurn = currentTurn;
-            this.gameState = gameState;
-            const currentPlayer = players.find(p => p.id === this.socket.id);
-            this.playerSymbol = currentPlayer.symbol;
-            this.updatePlayerInfo();
-            this.initializeBoard();
-            this.updateBoard(gameState);
-            this.setupScreen.classList.add('hidden');
-            this.waitingScreen.classList.add('hidden');
-            this.gameScreen.classList.remove('hidden');
-        });
-
-        this.socket.on('moveMade', ({ gameState, currentTurn }) => {
-            this.currentTurn = currentTurn;
-            this.gameState = gameState;
-            this.updateBoard(gameState);
-            this.updatePlayerInfo();
-        });
-
-        this.socket.on('gameOver', ({ winner }) => {
-            if (winner === this.playerName) {
-                this.gameStatusElement.textContent = 'You won!';
-            } else if (winner === null) {
-                this.gameStatusElement.textContent = "It's a draw!";
+        // Name submission
+        this.submitNameBtn.addEventListener('click', () => {
+            const name = this.playerNameInput.value.trim();
+            if (name) {
+                this.playerName = name;
+                this.playerNameDisplay.textContent = name;
+                this.showScreen('lobby');
+                this.socket.emit('enterLobby', { playerName: name });
             } else {
-                this.gameStatusElement.textContent = `${winner} won!`;
+                alert('Please enter your name');
             }
-            this.disableBoard();
         });
 
-        this.socket.on('opponentDisconnected', () => {
-            this.gameStatusElement.textContent = 'Opponent disconnected';
-            this.disableBoard();
+        // Create room
+        this.createRoomBtn.addEventListener('click', () => {
+            this.socket.emit('createRoom', { playerName: this.playerName });
         });
 
-        this.socket.on('roomFull', () => {
-            alert('Room is full');
+        // Copy room ID
+        this.copyRoomIdBtn.addEventListener('click', () => this.copyRoomId());
+
+        // Leave room
+        this.leaveRoomBtn.addEventListener('click', () => this.leaveRoom());
+    }
+
+    initializeSocketEvents() {
+        // Available rooms update
+        this.socket.on('availableRooms', (rooms) => {
+            this.updateRoomList(rooms);
         });
 
-        this.socket.on('roomNotFound', () => {
-            alert('Room not found');
+        // Room created
+        this.socket.on('roomCreated', ({ roomId }) => {
+            this.roomId = roomId;
+            this.isPlayer1 = true;
+            this.roomIdDisplay.textContent = roomId;
+            this.showScreen('game');
+            this.initializeBoard();
+            this.gameMessageDisplay.textContent = 'Waiting for opponent...';
+        });
+
+        // Room joined
+        this.socket.on('roomJoined', ({ roomId, gameState }) => {
+            this.roomId = roomId;
+            this.isPlayer1 = false;
+            this.roomIdDisplay.textContent = roomId;
+            this.showScreen('game');
+            this.initializeBoard();
+            this.updateGameState(gameState);
+        });
+
+        // Game state update
+        this.socket.on('gameState', (gameState) => {
+            this.updateGameState(gameState);
+        });
+
+        // Error handling
+        this.socket.on('error', (message) => {
+            alert(message);
         });
     }
 
-    createRoom() {
-        const playerName = this.playerNameInput.value.trim();
-        if (!playerName) {
-            alert('Please enter your name');
-            return;
-        }
-        this.socket.emit('joinRoom', { playerName });
+    updateRoomList(rooms) {
+        this.roomList.innerHTML = '';
+        
+        rooms.forEach(room => {
+            const roomItem = document.createElement('div');
+            roomItem.className = `room-item ${room.id === this.roomId ? 'my-room' : ''}`;
+            roomItem.innerHTML = `
+                <div class="room-info">
+                    <div class="room-number">Room ${room.id}</div>
+                    <div class="room-creator">Created by: ${room.creator}</div>
+                    <div class="room-status">${room.status === 'waiting' ? 'Waiting for opponent...' : 'Game in progress'}</div>
+                </div>
+                ${room.id !== this.roomId ? '<button class="join-btn">Join</button>' : ''}
+            `;
+            
+            const joinBtn = roomItem.querySelector('.join-btn');
+            if (joinBtn) {
+                joinBtn.addEventListener('click', () => {
+                    if (!this.playerName) {
+                        alert('Please enter your name first');
+                        return;
+                    }
+                    this.socket.emit('joinRoom', { 
+                        roomId: room.id, 
+                        playerName: this.playerName 
+                    });
+                });
+            }
+            
+            this.roomList.appendChild(roomItem);
+        });
     }
 
-    joinRoom() {
-        const playerName = this.playerNameInput.value.trim();
-        const roomId = this.roomIdInput.value.trim();
-        if (!playerName || !roomId) {
-            alert('Please enter your name and room ID');
+    showScreen(screenName) {
+        this.nameScreen.classList.add('hidden');
+        this.lobbyScreen.classList.add('hidden');
+        this.gameScreen.classList.add('hidden');
+
+        switch (screenName) {
+            case 'name':
+                this.nameScreen.classList.remove('hidden');
+                break;
+            case 'lobby':
+                this.lobbyScreen.classList.remove('hidden');
+                break;
+            case 'game':
+                this.gameScreen.classList.remove('hidden');
+                break;
+        }
+    }
+
+    initializeBoard() {
+        this.board.innerHTML = '';
+        for (let row = 0; row < 6; row++) {
+            for (let col = 0; col < 7; col++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.row = row;
+                cell.dataset.col = col;
+                cell.addEventListener('click', () => this.handleCellClick(col));
+                this.board.appendChild(cell);
+            }
+        }
+    }
+
+    handleCellClick(col) {
+        if (!this.gameActive) return;
+        
+        // Check if it's the player's turn
+        const isMyTurn = (this.isPlayer1 && this.currentPlayer === 'player1') ||
+                        (!this.isPlayer1 && this.currentPlayer === 'player2');
+        
+        if (!isMyTurn) {
+            this.displayMessage("It's not your turn!");
             return;
         }
-        this.socket.emit('joinRoom', { roomId, playerName });
+
+        // Find the lowest empty row in the column
+        let row = 5;
+        while (row >= 0 && this.gameBoard[row][col] !== null) {
+            row--;
+        }
+
+        if (row < 0) return; // Column is full
+
+        // Animate the coin falling and then emit the move
+        this.animateFallingCoin(col, row, () => {
+            this.socket.emit('makeMove', { roomId: this.roomId, col });
+        });
+    }
+
+    animateFallingCoin(col, targetRow, callback) {
+        // Remove any existing falling coin
+        const existingCoin = document.querySelector('.falling-coin');
+        if (existingCoin) {
+            existingCoin.remove();
+        }
+
+        // Create the falling coin element
+        const coin = document.createElement('div');
+        coin.className = `falling-coin player${this.currentPlayer}`;
+        
+        // Get the position of the first cell in the column
+        const firstCell = document.querySelector(`[data-row="0"][data-col="${col}"]`);
+        const cellRect = firstCell.getBoundingClientRect();
+        const boardRect = this.board.getBoundingClientRect();
+
+        // Position the coin at the top of the column
+        coin.style.left = `${cellRect.left - boardRect.left + (cellRect.width - 40) / 2}px`;
+        coin.style.top = '0px';
+        
+        // Add the coin to the game board
+        this.board.appendChild(coin);
+
+        // Animate the coin falling
+        let currentRow = 0;
+        function dropCoin() {
+            if (currentRow <= targetRow) {
+                const cell = document.querySelector(`[data-row="${currentRow}"][data-col="${col}"]`);
+                const cellRect = cell.getBoundingClientRect();
+                coin.style.top = `${cellRect.top - boardRect.top}px`;
+                currentRow++;
+                setTimeout(dropCoin, 50);
+            } else {
+                coin.remove();
+                if (callback) callback();
+            }
+        }
+
+        // Start the animation
+        requestAnimationFrame(dropCoin);
+    }
+
+    updateGameState(gameState) {
+        this.gameBoard = gameState.board;
+        this.currentPlayer = gameState.currentPlayer;
+        this.gameActive = gameState.status === 'playing';
+
+        // Update the board display
+        for (let row = 0; row < 6; row++) {
+            for (let col = 0; col < 7; col++) {
+                const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                cell.className = 'cell';
+                if (gameState.board[row][col] === 'player1') {
+                    cell.classList.add('player1');
+                } else if (gameState.board[row][col] === 'player2') {
+                    cell.classList.add('player2');
+                }
+            }
+        }
+
+        // Update game status message
+        if (gameState.status === 'waiting') {
+            this.displayMessage("Waiting for opponent...");
+        } else if (gameState.status === 'gameOver') {
+            if (gameState.winner === 'draw') {
+                this.displayMessage("Game Over - It's a Draw!");
+            } else {
+                const winnerName = gameState.players.find(p => p.name === gameState.winner)?.name || 'Unknown';
+                this.displayMessage(`Game Over - ${winnerName} wins!`);
+            }
+        } else if (gameState.status === 'playing') {
+            const currentPlayerName = gameState.players.find(p => 
+                p.color === gameState.currentPlayer
+            )?.name || 'Unknown';
+            this.displayMessage(`${currentPlayerName}'s turn`);
+        }
+    }
+
+    displayMessage(message) {
+        this.gameMessageDisplay.textContent = message;
     }
 
     copyRoomId() {
-        navigator.clipboard.writeText(this.roomId);
-        this.copyRoomIdButton.textContent = 'Copied!';
+        if (!this.roomId) return;
+        
+        const tempInput = document.createElement('input');
+        tempInput.value = this.roomId;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        
+        this.copyRoomIdBtn.textContent = 'Copied!';
         setTimeout(() => {
-            this.copyRoomIdButton.textContent = 'Copy Room ID';
+            this.copyRoomIdBtn.textContent = 'Copy Room ID';
         }, 2000);
     }
 
     leaveRoom() {
         this.socket.emit('leaveRoom', { roomId: this.roomId });
-        this.resetGameState();
-    }
-
-    resetGameState() {
-        this.setupScreen.classList.remove('hidden');
-        this.gameScreen.classList.add('hidden');
-        this.waitingScreen.classList.add('hidden');
-        this.playerNameInput.value = '';
-        this.roomIdInput.value = '';
-        this.roomId = '';
-        this.playerSymbol = '';
-        this.currentTurn = '';
-        this.gameState = Array(6).fill().map(() => Array(6).fill(null));
-    }
-
-    initializeBoard() {
-        this.boardElement.innerHTML = '';
-        for (let row = 0; row < 6; row++) {
-            for (let col = 0; col < 6; col++) {
-                const cell = document.createElement('div');
-                cell.className = 'cell';
-                cell.dataset.row = row;
-                cell.dataset.col = col;
-                cell.addEventListener('click', () => this.makeMove(col));
-                this.boardElement.appendChild(cell);
-            }
-        }
-    }
-
-    async makeMove(col) {
-        if (this.isAnimating || this.currentTurn !== this.playerSymbol) return;
-
-        this.isAnimating = true;
-        this.disableBoard();
-
-        // Find the lowest empty row in the column
-        let targetRow = -1;
-        for (let row = 5; row >= 0; row--) {
-            if (this.gameState[row][col] === null) {
-                targetRow = row;
-                break;
-            }
-        }
-
-        if (targetRow === -1) {
-            this.isAnimating = false;
-            this.enableBoard();
-            return;
-        }
-
-        // Create the falling coin element
-        const fallingCoin = document.createElement('div');
-        fallingCoin.className = `falling-coin player-${this.playerSymbol.toLowerCase()}`;
-        
-        // Add the coin to the top cell
-        const topCell = this.boardElement.querySelector(`[data-row="0"][data-col="${col}"]`);
-        topCell.appendChild(fallingCoin);
-        
-        // Fade in the coin
-        await new Promise(resolve => {
-            fallingCoin.classList.add('visible');
-            setTimeout(resolve, 100);
-        });
-        
-        // Animate through each row
-        for (let row = 0; row <= targetRow; row++) {
-            const currentCell = this.boardElement.querySelector(`[data-row="${row}"][data-col="${col}"]`);
-            currentCell.appendChild(fallingCoin);
-            await new Promise(resolve => setTimeout(resolve, 120));
-        }
-
-        // Update local game state
-        this.gameState[targetRow][col] = this.playerSymbol;
-
-        // Emit the move to the server
-        this.socket.emit('makeMove', { roomId: this.roomId, col });
-
-        this.isAnimating = false;
-        this.enableBoard();
-    }
-
-    updateBoard(gameState) {
-        const cells = this.boardElement.querySelectorAll('.cell');
-        cells.forEach((cell, index) => {
-            const row = Math.floor(index / 6);
-            const col = index % 6;
-            cell.className = 'cell';
-            if (gameState[row][col] === 'X') {
-                cell.classList.add('player-x');
-            } else if (gameState[row][col] === 'O') {
-                cell.classList.add('player-o');
-            }
-        });
-    }
-
-    updatePlayerInfo() {
-        if (this.currentTurn === this.playerSymbol) {
-            this.currentPlayerElement.textContent = 'Your turn';
-        } else {
-            this.currentPlayerElement.textContent = "Opponent's turn";
-        }
-    }
-
-    disableBoard() {
-        const cells = this.boardElement.querySelectorAll('.cell');
-        cells.forEach(cell => {
-            cell.style.cursor = 'not-allowed';
-            cell.style.pointerEvents = 'none';
-        });
-    }
-
-    enableBoard() {
-        const cells = this.boardElement.querySelectorAll('.cell');
-        cells.forEach(cell => {
-            cell.style.cursor = 'pointer';
-            cell.style.pointerEvents = 'auto';
-        });
-    }
-
-    resetGame() {
-        this.socket.emit('resetGame', { roomId: this.roomId });
+        this.roomId = null;
+        this.isPlayer1 = false;
+        this.gameBoard = Array(6).fill().map(() => Array(7).fill(null));
+        this.showScreen('lobby');
     }
 }
 
-// Start the game when the page loads
+// Initialize the game when the page loads
 window.addEventListener('DOMContentLoaded', () => {
     new Connect4Game();
 }); 

@@ -6,109 +6,192 @@
 
 body {
     font-family: Arial, sans-serif;
-    background-color: #f0f0f0;
+    background-color: #f0f2f5;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-}
-
-.container {
-    background-color: white;
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    text-align: center;
-    max-width: 600px;
-    width: 100%;
-}
-
-h1 {
-    color: #333;
-    margin-bottom: 1rem;
 }
 
 .screen {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-}
-
-.screen.hidden {
-    display: none;
-}
-
-.setup-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
     width: 100%;
-    max-width: 300px;
+    max-width: 800px;
+    padding: 20px;
+}
+
+.container {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    color: #1a1a1a;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+h2 {
+    color: #333;
+    margin: 20px 0;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 400px;
+    margin: 0 auto;
 }
 
 input[type="text"] {
-    padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    font-size: 1rem;
+    padding: 12px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s;
 }
 
-.room-options {
+input[type="text"]:focus {
+    border-color: #2196F3;
+    outline: none;
+}
+
+.form-group button {
+    background-color: #2196F3;
+    color: white;
+    padding: 14px 28px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+}
+
+.form-group button:hover {
+    background-color: #1976D2;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+.form-group button:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(33, 150, 243, 0.2);
+}
+
+.form-group button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Add a subtle animation to draw attention to the button */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+#submit-name {
+    animation: pulse 2s infinite;
+    margin-top: 10px;
+    width: 100%;
+    max-width: 200px;
+    align-self: center;
+}
+
+.player-info {
+    margin: 20px 0;
+    padding: 12px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    font-size: 18px;
+}
+
+.lobby-actions {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 20px;
+    padding: 0 20px;
 }
 
-.or {
-    text-align: center;
-    color: #666;
+.room-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 10px;
 }
 
-button {
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
-    background-color: #1a73e8;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
+.room-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    margin-bottom: 8px;
     transition: background-color 0.3s;
 }
 
-button:hover {
-    background-color: #1557b0;
+.room-item:hover {
+    background-color: #e9ecef;
 }
 
-button:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
+.room-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.game-info {
-    margin-bottom: 1rem;
-    width: 100%;
+.room-number {
+    font-weight: bold;
+    color: #333;
+    font-size: 1.4rem;
 }
 
-#room-info {
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
+.room-creator {
     color: #666;
+    font-size: 0.9rem;
 }
 
-#player-info {
-    font-size: 1.2rem;
+.room-status {
+    color: #2196F3;
+    font-size: 0.9rem;
+}
+
+.join-btn {
+    padding: 8px 16px;
+    background-color: #2196F3;
+    color: white;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.join-btn:hover {
+    background-color: #1976D2;
+}
+
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
 }
 
 .board {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 5px;
-    background-color: #1a73e8;
-    padding: 10px;
-    border-radius: 5px;
-    margin-bottom: 1rem;
-    position: relative;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin: 24px 0;
+    padding: 16px;
+    background-color: #1976D2;
+    border-radius: 12px;
 }
 
 .cell {
@@ -122,65 +205,74 @@ button:disabled {
     overflow: hidden;
 }
 
-.cell:hover {
-    background-color: #e0e0e0;
+.cell.player1 {
+    background-color: #FF5252;
 }
 
-.cell.player-x {
-    background-color: #ff6b6b;
-    box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
+.cell.player2 {
+    background-color: #FFD740;
 }
 
-.cell.player-o {
-    background-color: #ffd93d;
-    box-shadow: 0 2px 4px rgba(255, 217, 61, 0.3);
+.game-controls {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.hidden {
+    display: none;
+}
+
+.my-room {
+    border: 2px solid #2196F3;
+}
+
+.my-room .join-btn {
+    display: none;
+}
+
+#create-room-btn {
+    background-color: #2196F3;
+    color: white;
+    padding: 14px 28px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+#create-room-btn:hover {
+    background-color: #1976D2;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+#create-room-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(33, 150, 243, 0.2);
 }
 
 .falling-coin {
     position: absolute;
-    width: 100%;
-    height: 100%;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    transition: all 0.15s ease-in-out;
-    z-index: 1;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    will-change: transform, opacity;
-    opacity: 0;
-    transform: scale(0.8);
+    transition: top 0.05s linear;
+    z-index: 1000;
 }
 
-.falling-coin.player-x {
-    background-color: #ff6b6b;
-    box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
+.falling-coin.player1 {
+    background-color: #ff4136;
+    border: 2px solid #cc2f29;
 }
 
-.falling-coin.player-o {
-    background-color: #ffd93d;
-    box-shadow: 0 2px 4px rgba(255, 217, 61, 0.3);
-}
-
-.falling-coin.visible {
-    opacity: 1;
-    transform: scale(1);
-}
-
-.controls {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-}
-
-.waiting-message {
-    text-align: center;
-}
-
-.waiting-message h2 {
-    margin-bottom: 1rem;
-    color: #333;
-}
-
-.room-id {
-    margin-bottom: 1rem;
-    font-size: 1.2rem;
-    color: #666;
+.falling-coin.player2 {
+    background-color: #ffdc00;
+    border: 2px solid #ccb000;
 } 
