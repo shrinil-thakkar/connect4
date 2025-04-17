@@ -7,6 +7,7 @@ class Connect4Game {
         this.gameBoard = Array(6).fill().map(() => Array(7).fill(null));
         this.currentPlayer = 'player1';
         this.gameActive = false;
+        this.isBotMode = false;
         
         // Initialize DOM elements
         this.nameScreen = document.getElementById('name-screen');
@@ -19,6 +20,8 @@ class Connect4Game {
         this.gameMessageDisplay = document.getElementById('game-message');
         this.board = document.getElementById('board');
         this.roomList = document.getElementById('room-list');
+        this.waitingActions = document.getElementById('waiting-actions');
+        this.playBotBtn = document.getElementById('play-bot-btn');
 
         // Initialize buttons
         this.submitNameBtn = document.getElementById('submit-name');
@@ -54,6 +57,9 @@ class Connect4Game {
 
         // Leave room
         this.leaveRoomBtn.addEventListener('click', () => this.leaveRoom());
+
+        // Play vs Bot
+        this.playBotBtn.addEventListener('click', () => this.startBotMode());
     }
 
     initializeSocketEvents() {
@@ -178,10 +184,36 @@ class Connect4Game {
 
         if (row < 0) return; // Column is full
 
-        // Animate the coin falling and then emit the move
-        this.animateFallingCoin(col, row, () => {
+        // Make the move
+        this.gameBoard[row][col] = this.currentPlayer;
+        const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        cell.classList.add(this.currentPlayer);
+
+        // Check for win
+        if (this.checkWin(row, col)) {
+            this.gameActive = false;
+            this.displayMessage("You win!");
+            return;
+        }
+
+        // Check for draw
+        if (this.isBoardFull()) {
+            this.gameActive = false;
+            this.displayMessage("It's a draw!");
+            return;
+        }
+
+        // Switch players
+        this.currentPlayer = this.currentPlayer === 'player1' ? 'player2' : 'player1';
+
+        // If it's bot mode and bot's turn, make bot move
+        if (this.isBotMode && this.currentPlayer === 'player2') {
+            this.displayMessage("Bot is thinking...");
+            setTimeout(() => this.makeBotMove(), 1000);
+        } else if (!this.isBotMode) {
+            // If not bot mode, emit the move to the server
             this.socket.emit('makeMove', { roomId: this.roomId, col });
-        });
+        }
     }
 
     animateFallingCoin(col, targetRow, callback) {
@@ -255,6 +287,13 @@ class Connect4Game {
             }
         }
 
+        // Hide bot button if game is active or there are 2 players
+        if (gameState.status === 'playing' || (gameState.players && gameState.players.length === 2)) {
+            this.waitingActions.style.display = 'none';
+        } else {
+            this.waitingActions.style.display = 'flex';
+        }
+
         // Update game status message
         if (gameState.status === 'waiting') {
             this.displayMessage("Waiting for opponent...");
@@ -294,11 +333,109 @@ class Connect4Game {
     }
 
     leaveRoom() {
-        this.socket.emit('leaveRoom', { roomId: this.roomId });
-        this.roomId = null;
-        this.isPlayer1 = false;
-        this.gameBoard = Array(6).fill().map(() => Array(7).fill(null));
-        this.showScreen('lobby');
+        if (this.isBotMode) {
+            this.isBotMode = false;
+            this.gameActive = false;
+            this.gameBoard = Array(6).fill().map(() => Array(7).fill(null));
+            this.currentPlayer = 'player1';
+            this.showScreen('lobby');
+        } else {
+            this.socket.emit('leaveRoom', { roomId: this.roomId });
+            this.roomId = null;
+            this.isPlayer1 = false;
+            this.gameBoard = Array(6).fill().map(() => Array(7).fill(null));
+            this.showScreen('lobby');
+        }
+    }
+
+    startBotMode() {
+        this.isBotMode = true;
+        this.gameActive = true;
+        this.waitingActions.style.display = 'none';
+        this.displayMessage("Your turn");
+
+        // Bot will always be player2 (yellow)
+        this.isPlayer1 = true;
+        this.currentPlayer = 'player1';
+    }
+
+    makeBotMove() {
+        // Simple bot strategy: choose a random valid column
+        const validColumns = [];
+        for (let col = 0; col < 7; col++) {
+            if (this.gameBoard[0][col] === null) {
+                validColumns.push(col);
+            }
+        }
+
+        if (validColumns.length === 0) return;
+
+        const randomCol = validColumns[Math.floor(Math.random() * validColumns.length)];
+        let row = 5;
+        while (row >= 0 && this.gameBoard[row][randomCol] !== null) {
+            row--;
+        }
+
+        // Animate and make the move
+        this.animateFallingCoin(randomCol, row, () => {
+            this.gameBoard[row][randomCol] = 'player2';
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${randomCol}"]`);
+            cell.classList.add('player2');
+
+            // Check for win
+            if (this.checkWin(row, randomCol)) {
+                this.gameActive = false;
+                this.displayMessage("Bot wins!");
+                return;
+            }
+
+            // Check for draw
+            if (this.isBoardFull()) {
+                this.gameActive = false;
+                this.displayMessage("It's a draw!");
+                return;
+            }
+
+            // Switch back to player's turn
+            this.currentPlayer = 'player1';
+            this.displayMessage("Your turn");
+        });
+    }
+
+    checkWin(row, col) {
+        const directions = [
+            [[0, 1], [0, -1]], // horizontal
+            [[1, 0], [-1, 0]], // vertical
+            [[1, 1], [-1, -1]], // diagonal \
+            [[1, -1], [-1, 1]] // diagonal /
+        ];
+
+        const currentPlayer = this.gameBoard[row][col];
+
+        for (const [dir1, dir2] of directions) {
+            let count = 1;
+            count += this.countDirection(row, col, dir1[0], dir1[1], currentPlayer);
+            count += this.countDirection(row, col, dir2[0], dir2[1], currentPlayer);
+            if (count >= 4) return true;
+        }
+        return false;
+    }
+
+    countDirection(row, col, rowDir, colDir, player) {
+        let count = 0;
+        let r = row + rowDir;
+        let c = col + colDir;
+
+        while (r >= 0 && r < 6 && c >= 0 && c < 7 && this.gameBoard[r][c] === player) {
+            count++;
+            r += rowDir;
+            c += colDir;
+        }
+        return count;
+    }
+
+    isBoardFull() {
+        return this.gameBoard[0].every(cell => cell !== null);
     }
 }
 
