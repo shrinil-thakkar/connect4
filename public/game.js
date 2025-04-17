@@ -340,30 +340,177 @@ class Connect4Game {
     }
 
     makeBotMove() {
-        // Simple bot strategy: choose a random valid column
+        const botPlayer = 'player2';
+        const humanPlayer = 'player1';
+        
+        // Get all valid columns
         const validColumns = [];
         for (let col = 0; col < 7; col++) {
             if (this.gameBoard[0][col] === null) {
                 validColumns.push(col);
             }
         }
-
+        
         if (validColumns.length === 0) return;
 
-        const randomCol = validColumns[Math.floor(Math.random() * validColumns.length)];
+        // Helper function to simulate a move
+        const simulateMove = (col, player) => {
+            // Find the row where the piece would land
+            let row = 5;
+            while (row >= 0 && this.gameBoard[row][col] !== null) {
+                row--;
+            }
+            if (row < 0) return null;
+
+            // Create a copy of the board
+            const boardCopy = this.gameBoard.map(row => [...row]);
+            boardCopy[row][col] = player;
+            
+            return { row, boardCopy };
+        };
+
+        // Check if a move would result in a win
+        const checkWinningMove = (board, row, col, player) => {
+            const directions = [
+                [[0, 1], [0, -1]], // horizontal
+                [[1, 0], [-1, 0]], // vertical
+                [[1, 1], [-1, -1]], // diagonal \
+                [[1, -1], [-1, 1]] // diagonal /
+            ];
+
+            for (const [dir1, dir2] of directions) {
+                let count = 1;
+                
+                // Check first direction
+                let r = row + dir1[0];
+                let c = col + dir1[1];
+                while (r >= 0 && r < 6 && c >= 0 && c < 7 && board[r][c] === player) {
+                    count++;
+                    r += dir1[0];
+                    c += dir1[1];
+                }
+
+                // Check opposite direction
+                r = row + dir2[0];
+                c = col + dir2[1];
+                while (r >= 0 && r < 6 && c >= 0 && c < 7 && board[r][c] === player) {
+                    count++;
+                    r += dir2[0];
+                    c += dir2[1];
+                }
+
+                if (count >= 4) return true;
+            }
+            return false;
+        };
+
+        // Evaluate position score
+        const evaluatePosition = (board, row, col, player) => {
+            let score = 0;
+            
+            // Prefer center columns
+            score += (3 - Math.abs(3 - col)) * 2;
+            
+            // Check for potential connections
+            const directions = [
+                [[0, 1], [0, -1]], // horizontal
+                [[1, 0], [-1, 0]], // vertical
+                [[1, 1], [-1, -1]], // diagonal \
+                [[1, -1], [-1, 1]] // diagonal /
+            ];
+
+            for (const [dir1, dir2] of directions) {
+                let count = 1;
+                let spaces = 0;
+                
+                // Check first direction
+                let r = row + dir1[0];
+                let c = col + dir1[1];
+                while (r >= 0 && r < 6 && c >= 0 && c < 7 && 
+                       (board[r][c] === player || board[r][c] === null)) {
+                    if (board[r][c] === player) count++;
+                    else spaces++;
+                    r += dir1[0];
+                    c += dir1[1];
+                }
+
+                // Check opposite direction
+                r = row + dir2[0];
+                c = col + dir2[1];
+                while (r >= 0 && r < 6 && c >= 0 && c < 7 && 
+                       (board[r][c] === player || board[r][c] === null)) {
+                    if (board[r][c] === player) count++;
+                    else spaces++;
+                    r += dir2[0];
+                    c += dir2[1];
+                }
+
+                // Score based on potential connections
+                if (count + spaces >= 4) {
+                    score += count * count;
+                }
+            }
+            
+            return score;
+        };
+
+        // Find best move
+        let bestMove = validColumns[0];
+        let bestScore = -Infinity;
+
+        for (const col of validColumns) {
+            const simulation = simulateMove(col, botPlayer);
+            if (!simulation) continue;
+            const { row, boardCopy } = simulation;
+
+            // Check for immediate win
+            if (checkWinningMove(boardCopy, row, col, botPlayer)) {
+                bestMove = col;
+                break;
+            }
+
+            // Check if opponent would win
+            const blockSimulation = simulateMove(col, humanPlayer);
+            if (blockSimulation && checkWinningMove(blockSimulation.boardCopy, blockSimulation.row, col, humanPlayer)) {
+                bestMove = col;
+                continue;
+            }
+
+            // Evaluate position
+            const score = evaluatePosition(boardCopy, row, col, botPlayer);
+            
+            // Simulate opponent's response
+            let minOpponentScore = Infinity;
+            for (const oppCol of validColumns) {
+                const oppSimulation = simulateMove(oppCol, humanPlayer);
+                if (!oppSimulation) continue;
+                const oppScore = evaluatePosition(oppSimulation.boardCopy, oppSimulation.row, oppCol, humanPlayer);
+                minOpponentScore = Math.min(minOpponentScore, oppScore);
+            }
+
+            // Final score considers both bot's position and limiting opponent's opportunities
+            const finalScore = score - minOpponentScore;
+            
+            if (finalScore > bestScore) {
+                bestScore = finalScore;
+                bestMove = col;
+            }
+        }
+
+        // Make the chosen move
         let row = 5;
-        while (row >= 0 && this.gameBoard[row][randomCol] !== null) {
+        while (row >= 0 && this.gameBoard[row][bestMove] !== null) {
             row--;
         }
 
         // Animate and make the move
-        this.animateFallingCoin(randomCol, row, () => {
-            this.gameBoard[row][randomCol] = 'player2';
-            const cell = document.querySelector(`[data-row="${row}"][data-col="${randomCol}"]`);
+        this.animateFallingCoin(bestMove, row, () => {
+            this.gameBoard[row][bestMove] = 'player2';
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${bestMove}"]`);
             cell.classList.add('player2');
 
             // Check for win
-            if (this.checkWin(row, randomCol)) {
+            if (this.checkWin(row, bestMove)) {
                 this.gameActive = false;
                 this.displayMessage("Bot wins!");
                 return;
