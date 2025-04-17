@@ -26,7 +26,6 @@ class Connect4Game {
         // Initialize buttons
         this.submitNameBtn = document.getElementById('submit-name');
         this.createRoomBtn = document.getElementById('create-room-btn');
-        this.copyRoomIdBtn = document.getElementById('copy-room-id');
         this.leaveRoomBtn = document.getElementById('leave-room');
 
         this.setupEventListeners();
@@ -51,9 +50,6 @@ class Connect4Game {
         this.createRoomBtn.addEventListener('click', () => {
             this.socket.emit('createRoom', { playerName: this.playerName });
         });
-
-        // Copy room ID
-        this.copyRoomIdBtn.addEventListener('click', () => this.copyRoomId());
 
         // Leave room
         this.leaveRoomBtn.addEventListener('click', () => this.leaveRoom());
@@ -314,22 +310,6 @@ class Connect4Game {
 
     displayMessage(message) {
         this.gameMessageDisplay.textContent = message;
-    }
-
-    copyRoomId() {
-        if (!this.roomId) return;
-        
-        const tempInput = document.createElement('input');
-        tempInput.value = this.roomId;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        document.execCommand('copy');
-        document.body.removeChild(tempInput);
-        
-        this.copyRoomIdBtn.textContent = 'Copied!';
-        setTimeout(() => {
-            this.copyRoomIdBtn.textContent = 'Copy Room ID';
-        }, 2000);
     }
 
     leaveRoom() {
