@@ -188,24 +188,37 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Handle leaving room
+    // Handle leaving a room
     socket.on('leaveRoom', ({ roomId }) => {
-        if (rooms.has(roomId)) {
-            const room = rooms.get(roomId);
+        const room = rooms.get(roomId);
+        if (!room) return;
+
+        // Remove player from room
+        room.players = room.players.filter(p => p.id !== socket.id);
+
+        // If room is empty, delete it
+        if (room.players.length === 0) {
             rooms.delete(roomId);
-            
-            // Notify other players in the room
-            socket.to(roomId).emit('error', 'Opponent left the game');
-            
-            // Update available rooms for all players
-            io.emit('availableRooms', Array.from(rooms.values())
-                .filter(r => r.players.length < 2)
-                .map(r => ({
-                    id: r.id,
-                    creator: r.players[0].name,
-                    status: r.status
-                })));
+        } else {
+            // Notify remaining player
+            io.to(roomId).emit('error', 'Opponent left the game');
+            room.status = 'waiting';
+            room.gameActive = false;
         }
+
+        // Leave socket room
+        socket.leave(roomId);
+        socket.roomId = null;
+
+        // Update available rooms for all players
+        const availableRooms = Array.from(rooms.values())
+            .filter(r => r.players.length < 2)
+            .map(r => ({
+                id: r.id,
+                creator: r.players[0].name,
+                status: r.status
+            }));
+        io.emit('availableRooms', availableRooms);
     });
 });
 
